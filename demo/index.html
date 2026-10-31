@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Locale JSON Merger</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --border: #2d3a4d;
+      --text: #e7ecf3;
+      --muted: #8b9bb4;
+      --accent: #3d8bfd;
+      --accent-hover: #5ca0ff;
+      --ok: #3dd68c;
+      --warn: #f5a524;
+      --err: #f04438;
+      --code: #0b1220;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% -10%, #1a3a5c 0%, transparent 50%),
+        radial-gradient(ellipse 60% 40% at 90% 10%, #1a2f45 0%, transparent 45%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+
+    header h1 {
+      margin: 0 0 0.35rem;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      margin: 0 0 1.75rem;
+      color: var(--muted);
+      max-width: 40rem;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 800px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+    }
+
+    .panel label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 280px;
+      resize: vertical;
+      background: var(--code);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem;
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 0.85rem;
+      line-height: 1.45;
+    }
+
+    textarea:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin: 1rem 0;
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 8px;
+      padding: 0.7rem 1.15rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+    }
+
+    button:hover { background: var(--accent-hover); }
+    button.secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    button.secondary:hover { border-color: var(--accent); color: var(--accent); }
+    button:disabled { opacity: 0.5; cursor: wait; }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      min-width: 8rem;
+    }
+
+    .stat .n {
+      font-size: 1.5rem;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .stat .l {
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .stat.missing .n { color: var(--err); }
+    .stat.extra .n { color: var(--warn); }
+    .stat.ok .n { color: var(--ok); }
+
+    pre {
+      margin: 0;
+      background: var(--code);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow: auto;
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 0.85rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .error {
+      color: var(--err);
+      margin: 0.5rem 0 0;
+      font-size: 0.95rem;
+    }
+
+    .hidden { display: none; }
+
+    .list {
+      margin: 0;
+      padding-left: 1.1rem;
+      color: var(--muted);
+    }
+
+    .list li { margin: 0.2rem 0; }
+    .list.missing li { color: #ff8f86; }
+    .list.extra li { color: #ffc56d; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Locale JSON Merger</h1>
+      <p>Compare a child locale against the English master. Missing keys get English fallbacks; existing translations are never overwritten.</p>
+    </header>
+
+    <div class="grid">
+      <div class="panel">
+        <label for="master">Master (en.json)</label>
+        <textarea id="master" spellcheck="false">{
+  "welcome": "Welcome",
+  "menu": {
+    "home": "Home",
+    "settings": "Settings"
+  },
+  "auth": {
+    "login": {
+      "title": "Login",
+      "email": "Email",
+      "password": "Password"
+    }
+  },
+  "languages": ["English", "French", "Japanese"]
+}</textarea>
+      </div>
+      <div class="panel">
+        <label for="child">Child locale (e.g. fr.json)</label>
+        <textarea id="child" spellcheck="false">{
+  "welcome": "Bienvenue",
+  "menu": {
+    "home": "Accueil"
+  },
+  "auth": {
+    "login": {
+      "title": "Connexion"
+    }
+  },
+  "legacy": {
+    "title": "Ancien titre"
+  },
+  "ja": "こんにちは"
+}</textarea>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <label class="toggle">
+        <input type="checkbox" id="sort" checked>
+        Sort keys alphabetically
+      </label>
+      <button type="button" id="btn-check">Check</button>
+      <button type="button" id="btn-merge">Merge</button>
+      <button type="button" class="secondary" id="btn-sample">Reset samples</button>
+    </div>
+
+    <p id="error" class="error hidden"></p>
+
+    <div id="stats" class="stats hidden"></div>
+
+    <div class="grid">
+      <div class="panel">
+        <label>Missing / extra keys</label>
+        <div id="keys"></div>
+      </div>
+      <div class="panel">
+        <label>Result JSON</label>
+        <pre id="result">Run Check or Merge to see output.</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const masterEl = document.getElementById('master');
+    const childEl = document.getElementById('child');
+    const sortEl = document.getElementById('sort');
+    const errorEl = document.getElementById('error');
+    const statsEl = document.getElementById('stats');
+    const keysEl = document.getElementById('keys');
+    const resultEl = document.getElementById('result');
+    const btnCheck = document.getElementById('btn-check');
+    const btnMerge = document.getElementById('btn-merge');
+
+    const samples = {
+      master: masterEl.value,
+      child: childEl.value,
+    };
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.classList.toggle('hidden', !msg);
+    }
+
+    function parseJson(label, text) {
+      try {
+        const value = JSON.parse(text);
+        if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+          throw new Error(label + ' must be a JSON object.');
+        }
+        return value;
+      } catch (e) {
+        throw new Error(label + ': ' + e.message);
+      }
+    }
+
+    function renderLists(payload) {
+      const missing = payload.missing_keys || [];
+      const extra = payload.extra_keys || [];
+      const conflicts = payload.type_conflicts || [];
+
+      keysEl.innerHTML = `
+        <p style="margin:0 0 .4rem;color:var(--muted)">Missing (${missing.length})</p>
+        <ul class="list missing">${missing.length ? missing.map(k => `<li>${k}</li>`).join('') : '<li>None</li>'}</ul>
+        <p style="margin:1rem 0 .4rem;color:var(--muted)">Extra (${extra.length})</p>
+        <ul class="list extra">${extra.length ? extra.map(k => `<li>${k}</li>`).join('') : '<li>None</li>'}</ul>
+        ${conflicts.length ? `
+          <p style="margin:1rem 0 .4rem;color:var(--muted)">Type conflicts (${conflicts.length})</p>
+          <ul class="list">${conflicts.map(c => `<li>${c.path} — master:${c.master_type}, child:${c.child_type}</li>`).join('')}</ul>
+        ` : ''}
+      `;
+
+      const missingCount = payload.missing_count ?? missing.length;
+      statsEl.classList.remove('hidden');
+      statsEl.innerHTML = `
+        <div class="stat ${missingCount ? 'missing' : 'ok'}"><div class="n">${missingCount}</div><div class="l">Missing</div></div>
+        <div class="stat extra"><div class="n">${payload.extra_count ?? extra.length}</div><div class="l">Extra</div></div>
+        <div class="stat"><div class="n">${conflicts.length}</div><div class="l">Conflicts</div></div>
+      `;
+    }
+
+    async function call(action) {
+      showError('');
+      btnCheck.disabled = true;
+      btnMerge.disabled = true;
+
+      try {
+        const master = parseJson('Master', masterEl.value);
+        const child = parseJson('Child', childEl.value);
+
+        const res = await fetch('/api/' + action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({
+            master_data: master,
+            child_data: child,
+            sort: sortEl.checked,
+          }),
+        });
+
+        const payload = await res.json();
+        if (!res.ok || payload.success === false) {
+          throw new Error(payload.message || ('Request failed with status ' + res.status));
+        }
+
+        renderLists(payload);
+        resultEl.textContent = JSON.stringify(
+          action === 'merge' ? (payload.data ?? payload.merged ?? payload) : payload,
+          null,
+          2
+        );
+      } catch (e) {
+        showError(e.message);
+      } finally {
+        btnCheck.disabled = false;
+        btnMerge.disabled = false;
+      }
+    }
+
+    btnCheck.addEventListener('click', () => call('check'));
+    btnMerge.addEventListener('click', () => call('merge'));
+    document.getElementById('btn-sample').addEventListener('click', () => {
+      masterEl.value = samples.master;
+      childEl.value = samples.child;
+      showError('');
+    });
+  </script>
+</body>
+</html>
