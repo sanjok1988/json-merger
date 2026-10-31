@@ -1,5 +1,5 @@
 {
-    "name": "vendor/laravel-locale-json-merger",
+    "name": "sanjokdangol/laravel-locale-json-merger",
     "description": "Compare and merge Laravel locale JSON files using English as the master locale.",
     "type": "library",
     "license": "MIT",
@@ -13,8 +13,8 @@
     ],
     "authors": [
         {
-            "name": "Vendor",
-            "email": "vendor@example.com"
+            "name": "Sanjok Dangol",
+            "email": "sanjokdangol1@gmail.com"
         }
     ],
     "require": {
