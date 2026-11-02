@@ -30,6 +30,13 @@ return [
 
     'allow_overwrite' => false,
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_TRANSLATION_MODEL', 'gpt-4o'),
+        'endpoint' => env('OPENAI_API_ENDPOINT', 'https://api.openai.com/v1/chat/completions'),
+        'timeout' => (int) env('OPENAI_TRANSLATION_TIMEOUT', 30),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | HTTP API

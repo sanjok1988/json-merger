@@ -52,11 +52,12 @@ final class JsonLocaleFileService
         ?string $outputPath = null,
         bool $sort = true,
         bool $allowOverwrite = false,
+        ?string $targetLanguage = null,
     ): MergeResult {
         $master = $this->readAssociativeObject($masterPath);
         $child = $this->readAssociativeObject($childPath);
 
-        $result = $this->merger->merge($master, $child, $sort);
+        $result = $this->merger->merge($master, $child, $sort, $targetLanguage);
 
         $targetPath = $outputPath ?? ($allowOverwrite ? $childPath : null);
 

@@ -149,6 +149,7 @@ $result = $files->mergeFiles(
     outputPath: resource_path('lang/fr.merged.json'),
     sort: true,
     allowOverwrite: false,
+    targetLanguage: 'French',
 );
 ```
 
@@ -158,6 +159,7 @@ Notes:
 - The root value must be an associative JSON object.
 - Existing output files are not overwritten unless `allowOverwrite` is `true`.
 - When `outputPath` is `null`, nothing is written unless overwrite of the child file is explicitly allowed.
+- `targetLanguage` optionally translates missing strings with OpenAI's configured `gpt-4o` model.
 
 ## Artisan usage
 
@@ -223,8 +225,23 @@ Options:
 --force
 --dry-run
 --no-sort
+--target-language=
 --json
 ```
+
+Translate missing strings during a merge:
+
+```bash
+OPENAI_API_KEY=your-key php artisan locale:merge \
+  resources/lang/en.json \
+  resources/lang/fr.json \
+  --output=resources/lang/fr.merged.json \
+  --target-language=French
+```
+
+Only missing master strings are translated. Existing child translations and extra
+child keys are preserved. Set `OPENAI_TRANSLATION_MODEL` to override the default
+`gpt-4o` model.
 
 Dry run (never writes a file):
 
@@ -269,6 +286,7 @@ POST /api/locale-json/merge
   "child_data": {
     "welcome": "Bienvenue"
   },
+  "target_language": "French",
   "sort": true
 }
 ```
@@ -288,6 +306,7 @@ Validation:
 - `master_data` and `child_data` are required.
 - Both must be associative JSON objects (or JSON strings that decode to objects).
 - `sort` must be boolean when present.
+- `target_language` is optional and must be a string of at most 100 characters.
 - Server file paths are **never** accepted.
 
 ### Check response (`200`)

@@ -20,7 +20,8 @@ final class LocaleMergeCommand extends Command
                             {--force : Allow overwriting an existing output file}
                             {--dry-run : Merge and report without writing a file}
                             {--json : Output machine-readable JSON only}
-                            {--no-sort : Disable alphabetical key sorting}';
+                            {--no-sort : Disable alphabetical key sorting}
+                            {--target-language= : Translate missing strings into this language using OpenAI}';
 
     protected $description = 'Merge missing master locale keys into a child locale JSON file';
 
@@ -35,6 +36,8 @@ final class LocaleMergeCommand extends Command
         $force = (bool) $this->option('force');
         $dryRun = (bool) $this->option('dry-run');
         $asJson = (bool) $this->option('json');
+        $targetLanguage = $this->option('target-language');
+        $targetLanguage = is_string($targetLanguage) && $targetLanguage !== '' ? $targetLanguage : null;
         $allowOverwrite = $force || (bool) config('locale-json-merger.allow_overwrite', false);
 
         if ($this->option('no-sort')) {
@@ -53,7 +56,7 @@ final class LocaleMergeCommand extends Command
         try {
             $master = $fileService->readAssociativeObject($masterPath);
             $child = $fileService->readAssociativeObject($childPath);
-            $result = $merger->merge($master, $child, $sort);
+            $result = $merger->merge($master, $child, $sort, $targetLanguage);
         } catch (LocaleFileException|InvalidJsonException $exception) {
             return $this->failWithError($exception->getMessage(), $asJson);
         } catch (Throwable $exception) {

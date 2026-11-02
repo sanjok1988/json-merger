@@ -8,8 +8,10 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Vendor\LocaleJsonMerger\Console\Commands\LocaleCheckCommand;
 use Vendor\LocaleJsonMerger\Console\Commands\LocaleMergeCommand;
+use Vendor\LocaleJsonMerger\Contracts\LocaleTranslator;
 use Vendor\LocaleJsonMerger\Services\JsonLocaleFileService;
 use Vendor\LocaleJsonMerger\Services\LocaleJsonMerger;
+use Vendor\LocaleJsonMerger\Services\OpenAiLocaleTranslator;
 use Vendor\LocaleJsonMerger\Support\RecursiveJsonMerger;
 
 final class LocaleJsonMergerServiceProvider extends ServiceProvider
@@ -22,6 +24,7 @@ final class LocaleJsonMergerServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(RecursiveJsonMerger::class);
+        $this->app->singleton(LocaleTranslator::class, OpenAiLocaleTranslator::class);
         $this->app->singleton(LocaleJsonMerger::class);
         $this->app->singleton(JsonLocaleFileService::class);
     }

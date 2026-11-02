@@ -99,6 +99,22 @@
       outline-offset: 1px;
     }
 
+    select {
+      width: 10rem;
+      padding: 0.55rem 0.7rem;
+      background: var(--code);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font: inherit;
+    }
+
+    .key-count {
+      margin-top: 0.5rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
     .toolbar {
       display: flex;
       flex-wrap: wrap;
@@ -135,6 +151,29 @@
     }
     button.secondary:hover { border-color: var(--accent); color: var(--accent); }
     button:disabled { opacity: 0.5; cursor: wait; }
+
+    .process-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .process-status.hidden { display: none; }
+
+    .spinner {
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
 
     .stats {
       display: flex;
@@ -182,6 +221,31 @@
       word-break: break-word;
     }
 
+    .result-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .result-metric {
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .result-metric strong {
+      display: block;
+      color: var(--text);
+      font-size: 1.15rem;
+    }
+
+    @media (max-width: 520px) {
+      .result-metrics { grid-template-columns: 1fr; }
+    }
+
     .error {
       color: var(--err);
       margin: 0.5rem 0 0;
@@ -199,6 +263,111 @@
     .list li { margin: 0.2rem 0; }
     .list.missing li { color: #ff8f86; }
     .list.extra li { color: #ffc56d; }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .result-header label { margin-bottom: 0; }
+
+    .editor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .file-picker {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.5rem 0;
+    }
+
+    .file-picker input[type="file"] {
+      max-width: 100%;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .file-picker select {
+      width: auto;
+      min-width: 12rem;
+    }
+
+    .copy-button {
+      padding: 0.4rem 0.7rem;
+      font-size: 0.8rem;
+    }
+
+    .copy-status {
+      min-width: 4.5rem;
+      color: var(--ok);
+      font-size: 0.8rem;
+      text-align: right;
+    }
+
+    .mixed-values {
+      margin: -0.25rem 0 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .mixed-values h2 {
+      margin: 0 0 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .mixed-values summary {
+      cursor: pointer;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .mixed-values summary::marker { color: var(--accent); }
+
+    .mixed-values-content { margin-top: 0.6rem; }
+
+    .mixed-values .list { margin-bottom: 0; }
+
+    .mixed-values code {
+      color: var(--text);
+    }
+
+    .translation-report {
+      margin: -0.25rem 0 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .translation-report h2 {
+      margin: 0 0 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .translation-report summary {
+      cursor: pointer;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .translation-report summary::marker { color: var(--accent); }
+
+    .translation-report-content { margin-top: 0.6rem; }
+
+    .translation-report .list { margin-bottom: 0; }
+
+    .translation-report .source { color: var(--muted); }
   </style>
 </head>
 <body>
@@ -210,7 +379,16 @@
 
     <div class="grid">
       <div class="panel">
-        <label for="master">Master (en.json)</label>
+        <div class="editor-header">
+          <label for="master">Master (en.json)</label>
+          <button type="button" class="secondary copy-button" id="btn-copy-master">Copy</button>
+        </div>
+        <div class="file-picker">
+          <select id="master-server-file" aria-label="Master file from storage app locales">
+            <option value="">Load from storage/app/locales...</option>
+          </select>
+          <input type="file" id="master-file" accept=".json,application/json">
+        </div>
         <textarea id="master" spellcheck="false">{
   "welcome": "Welcome",
   "menu": {
@@ -226,9 +404,19 @@
   },
   "languages": ["English", "French", "Japanese"]
 }</textarea>
+      <div class="key-count" id="master-count" aria-live="polite"></div>
       </div>
       <div class="panel">
-        <label for="child">Child locale (e.g. fr.json)</label>
+        <div class="editor-header">
+          <label for="child">Child locale (e.g. fr.json)</label>
+          <button type="button" class="secondary copy-button" id="btn-copy-child">Copy</button>
+        </div>
+        <div class="file-picker">
+          <select id="child-server-file" aria-label="Child file from storage app locales">
+            <option value="">Load from storage/app/locales...</option>
+          </select>
+          <input type="file" id="child-file" accept=".json,application/json">
+        </div>
         <textarea id="child" spellcheck="false">{
   "welcome": "Bienvenue",
   "menu": {
@@ -244,6 +432,7 @@
   },
   "ja": "こんにちは"
 }</textarea>
+      <div class="key-count" id="child-count" aria-live="polite"></div>
       </div>
     </div>
 
@@ -252,14 +441,43 @@
         <input type="checkbox" id="sort" checked>
         Sort keys alphabetically
       </label>
+      <label class="toggle" for="target-language">
+        Target language
+        <select id="target-language">
+          <option value="French">French</option>
+          <option value="Vietnamese">Vietnamese</option>
+          <option value="Japanese">Japanese</option>
+          <option value="Chinese">Chinese</option>
+          <option value="Korean">Korean</option>
+          <option value="Hindi">Indian (Hindi)</option>
+          <option value="Turkish">Turkish</option>
+          <option value="Malay">Malaysia (Malay)</option>
+          <option value="Arabic">Arabic</option>
+          <option value="Russian">Russian</option>
+          <option value="Nepali">Nepali</option>
+        </select>
+      </label>
       <button type="button" id="btn-check">Check</button>
-      <button type="button" id="btn-merge">Merge</button>
+      <button type="button" id="btn-merge" disabled>Merge</button>
+      <button type="button" id="btn-translate" disabled>Translate</button>
       <button type="button" class="secondary" id="btn-sample">Reset samples</button>
+      <span class="process-status hidden" id="process-status" role="status" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="process-label">Translating mixed English values...</span>
+      </span>
     </div>
 
     <p id="error" class="error hidden"></p>
 
     <div id="stats" class="stats hidden"></div>
+    <details id="mixed-values" class="mixed-values hidden" open>
+      <summary>English values still present in the child locale</summary>
+      <div id="mixed-values-content" class="mixed-values-content"></div>
+    </details>
+    <details id="translation-report" class="translation-report hidden">
+      <summary id="translation-report-summary">Translation report</summary>
+      <div id="translation-report-content" class="translation-report-content"></div>
+    </details>
 
     <div class="grid">
       <div class="panel">
@@ -267,8 +485,13 @@
         <div id="keys"></div>
       </div>
       <div class="panel">
-        <label>Result JSON</label>
+        <div class="result-header">
+          <label>Result JSON</label>
+          <span class="copy-status" id="copy-status" aria-live="polite"></span>
+          <button type="button" class="secondary copy-button" id="btn-copy" disabled>Copy JSON</button>
+        </div>
         <pre id="result">Run Check or Merge to see output.</pre>
+        <div class="result-metrics hidden" id="result-metrics" aria-live="polite"></div>
       </div>
     </div>
   </div>
@@ -276,13 +499,36 @@
   <script>
     const masterEl = document.getElementById('master');
     const childEl = document.getElementById('child');
+    const masterFileEl = document.getElementById('master-file');
+    const childFileEl = document.getElementById('child-file');
+    const masterServerFileEl = document.getElementById('master-server-file');
+    const childServerFileEl = document.getElementById('child-server-file');
+    const masterCountEl = document.getElementById('master-count');
+    const childCountEl = document.getElementById('child-count');
     const sortEl = document.getElementById('sort');
+    const targetLanguageEl = document.getElementById('target-language');
     const errorEl = document.getElementById('error');
     const statsEl = document.getElementById('stats');
     const keysEl = document.getElementById('keys');
     const resultEl = document.getElementById('result');
+    const resultMetricsEl = document.getElementById('result-metrics');
     const btnCheck = document.getElementById('btn-check');
     const btnMerge = document.getElementById('btn-merge');
+    const btnTranslate = document.getElementById('btn-translate');
+    const btnCopy = document.getElementById('btn-copy');
+    const btnCopyMaster = document.getElementById('btn-copy-master');
+    const btnCopyChild = document.getElementById('btn-copy-child');
+    const copyStatusEl = document.getElementById('copy-status');
+    const mixedValuesEl = document.getElementById('mixed-values');
+    const mixedValuesContentEl = document.getElementById('mixed-values-content');
+    const translationReportEl = document.getElementById('translation-report');
+    const translationReportSummaryEl = document.getElementById('translation-report-summary');
+    const translationReportContentEl = document.getElementById('translation-report-content');
+    const processStatusEl = document.getElementById('process-status');
+    let mergedData = null;
+    let mergePayload = null;
+    let checkPassed = false;
+    let mergePassed = false;
 
     const samples = {
       master: masterEl.value,
@@ -292,6 +538,18 @@
     function showError(msg) {
       errorEl.textContent = msg;
       errorEl.classList.toggle('hidden', !msg);
+    }
+
+    function resetWorkflow() {
+      checkPassed = false;
+      mergePassed = false;
+      mergedData = null;
+      mergePayload = null;
+      btnMerge.disabled = true;
+      btnTranslate.disabled = true;
+      btnCopy.disabled = true;
+      translationReportEl.classList.add('hidden');
+      translationReportContentEl.innerHTML = '';
     }
 
     function parseJson(label, text) {
@@ -306,10 +564,184 @@
       }
     }
 
-    function renderLists(payload) {
+    async function loadJsonFile(input, target, label) {
+      const file = input.files[0];
+
+      if (!file) {
+        return;
+      }
+
+      try {
+        target.value = await file.text();
+        parseJson(label, target.value);
+        updateKeyCount(target, label === 'Master' ? masterCountEl : childCountEl);
+        mergedData = null;
+        resetWorkflow();
+        resultEl.textContent = 'Run Check or Merge to see output.';
+        btnCopy.disabled = true;
+        translationReportEl.classList.add('hidden');
+        showError('');
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    async function loadServerJsonFile(input, target, label) {
+      const filename = input.value;
+
+      if (!filename) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/locale-file?name=' + encodeURIComponent(filename), {
+          headers: { 'Accept': 'application/json' },
+        });
+        const payload = await response.json();
+
+        if (!response.ok || payload.success === false) {
+          throw new Error(payload.message || 'Unable to load locale file.');
+        }
+
+        target.value = JSON.stringify(payload.data, null, 2);
+        updateKeyCount(target, label === 'Master' ? masterCountEl : childCountEl);
+        mergedData = null;
+        mergePayload = null;
+        btnTranslate.disabled = true;
+        resultEl.textContent = 'Run Check or Merge to see output.';
+        btnCopy.disabled = true;
+        translationReportEl.classList.add('hidden');
+        showError('');
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    function countLeafKeys(value) {
+      return Object.values(value).reduce((count, item) => {
+        if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+          return count + countLeafKeys(item);
+        }
+
+        return count + 1;
+      }, 0);
+    }
+
+    function updateKeyCount(input, output) {
+      try {
+        output.textContent = 'Total keys: ' + countLeafKeys(parseJson('Locale', input.value));
+      } catch (e) {
+        output.textContent = 'Total keys: Invalid JSON';
+      }
+    }
+
+    function forEachLeafValue(value, callback) {
+      Object.values(value).forEach(item => {
+        if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+          forEachLeafValue(item, callback);
+          return;
+        }
+
+        callback(item);
+      });
+    }
+
+    function countWords(value) {
+      let count = 0;
+      forEachTextValue(value, item => {
+        if (typeof item === 'string' && item.trim()) {
+          count += item.trim().split(/\s+/u).length;
+        }
+      });
+      return count;
+    }
+
+    function countStringValues(value) {
+      let count = 0;
+      forEachTextValue(value, item => {
+        if (typeof item === 'string') {
+          count += 1;
+        }
+      });
+      return count;
+    }
+
+    function findMixedEnglishValues(master, child, prefix = '', keyPath = []) {
+      const matches = [];
+
+      Object.entries(child).forEach(([key, childValue]) => {
+        const path = prefix ? prefix + '.' + key : key;
+        const masterValue = master?.[key];
+        const nextKeyPath = [...keyPath, key];
+
+        if (childValue !== null && typeof childValue === 'object' && !Array.isArray(childValue)) {
+          if (masterValue !== null && typeof masterValue === 'object' && !Array.isArray(masterValue)) {
+            matches.push(...findMixedEnglishValues(masterValue, childValue, path, nextKeyPath));
+          }
+          return;
+        }
+
+        if (typeof childValue === 'string' && typeof masterValue === 'string' && childValue === masterValue) {
+          matches.push({ path, keyPath: nextKeyPath, value: childValue });
+        }
+      });
+
+      return matches;
+    }
+
+    function findChangedTextValues(before, after, prefix = '') {
+      const changes = [];
+
+      if (before !== null && typeof before === 'object' && after !== null && typeof after === 'object') {
+        Object.entries(after).forEach(([key, afterValue]) => {
+          const path = prefix ? prefix + '.' + key : key;
+          changes.push(...findChangedTextValues(before[key], afterValue, path));
+        });
+        return changes;
+      }
+
+      if (typeof before === 'string' && typeof after === 'string' && before !== after) {
+        changes.push({ path: prefix, before, after });
+      }
+
+      return changes;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function forEachTextValue(value, callback) {
+      if (Array.isArray(value)) {
+        value.forEach(item => forEachTextValue(item, callback));
+        return;
+      }
+
+      if (value !== null && typeof value === 'object') {
+        forEachLeafValue(value, item => forEachTextValue(item, callback));
+        return;
+      }
+
+      callback(value);
+    }
+
+    function renderResultMetrics(totalData) {
+      resultMetricsEl.innerHTML = `
+        <div class="result-metric"><strong>${countLeafKeys(totalData)}</strong>Total keys</div>
+      `;
+      resultMetricsEl.classList.remove('hidden');
+    }
+
+    function renderLists(payload, master, child) {
       const missing = payload.missing_keys || [];
       const extra = payload.extra_keys || [];
       const conflicts = payload.type_conflicts || [];
+      const mixedValues = findMixedEnglishValues(master, child);
 
       keysEl.innerHTML = `
         <p style="margin:0 0 .4rem;color:var(--muted)">Missing (${missing.length})</p>
@@ -328,26 +760,228 @@
         <div class="stat ${missingCount ? 'missing' : 'ok'}"><div class="n">${missingCount}</div><div class="l">Missing</div></div>
         <div class="stat extra"><div class="n">${payload.extra_count ?? extra.length}</div><div class="l">Extra</div></div>
         <div class="stat"><div class="n">${conflicts.length}</div><div class="l">Conflicts</div></div>
+        <div class="stat"><div class="n">${countStringValues(master)}</div><div class="l">English values</div></div>
+        <div class="stat"><div class="n">${countStringValues(child)}</div><div class="l">Other language values</div></div>
+        <div class="stat ${mixedValues.length ? 'missing' : 'ok'}"><div class="n">${mixedValues.length}</div><div class="l">English values mixed in</div></div>
       `;
+
+      mixedValuesEl.classList.toggle('hidden', mixedValues.length === 0);
+      mixedValuesEl.open = mixedValues.length > 0;
+      mixedValuesContentEl.innerHTML = mixedValues.length ? `
+        <ul class="list">
+          ${mixedValues.map(item => `<li><code>${escapeHtml(item.path)}</code>: ${escapeHtml(item.value)}</li>`).join('')}
+        </ul>
+      ` : '';
     }
 
-    async function call(action) {
+    function renderTranslationReport(before, after) {
+      const changes = findChangedTextValues(before, after);
+      translationReportEl.classList.toggle('hidden', changes.length === 0);
+      translationReportEl.open = false;
+      translationReportSummaryEl.textContent = `Translation report (${changes.length} values)`;
+      translationReportContentEl.innerHTML = changes.length ? `
+        <ul class="list">
+          ${changes.map(item => `
+            <li><code>${escapeHtml(item.path)}</code>: <span class="source">${escapeHtml(item.before)}</span> &rarr; ${escapeHtml(item.after)}</li>
+          `).join('')}
+        </ul>
+      ` : '';
+    }
+
+    function setValueAtPath(object, keys, value) {
+      if (!Array.isArray(keys) || keys.length === 0) {
+        throw new Error('Translation returned an invalid key path.');
+      }
+
+      const finalKey = keys.pop();
+      let current = object;
+
+      keys.forEach(key => {
+        if (current === null || typeof current !== 'object' || !(key in current)) {
+          throw new Error(`Translation path not found: ${keys.join('.')}.${key}`);
+        }
+
+        current = current[key];
+      });
+
+      if (current === null || typeof current !== 'object') {
+        throw new Error(`Translation path is not writable: ${keys.join('.')}.${finalKey}`);
+      }
+
+      current[finalKey] = value;
+    }
+
+    function splitIntoChunks(items, maxItems = 20, maxCharacters = 6000) {
+      const chunks = [];
+      let chunk = [];
+      let characters = 0;
+
+      items.forEach(item => {
+        const itemSize = item.text.length + item.path.length;
+
+        if (chunk.length && (chunk.length >= maxItems || characters + itemSize > maxCharacters)) {
+          chunks.push(chunk);
+          chunk = [];
+          characters = 0;
+        }
+
+        chunk.push(item);
+        characters += itemSize;
+      });
+
+      if (chunk.length) {
+        chunks.push(chunk);
+      }
+
+      return chunks;
+    }
+
+    async function translateMergedValues() {
+      showError('');
+
+      if (!mergePassed || mergedData === null) {
+        showError('Complete Check and Merge before translating.');
+        return;
+      }
+
+      const master = parseJson('Master', masterEl.value);
+      const before = JSON.parse(JSON.stringify(mergedData));
+      const mixedValues = findMixedEnglishValues(master, before);
+
+      if (!mixedValues.length) {
+        renderTranslationReport(before, before);
+        showError('No mixed English values need translation.');
+        return;
+      }
+
+      const targetLanguage = targetLanguageEl.value;
+      const confirmed = window.confirm(
+        `Translate ${mixedValues.length} mixed English value${mixedValues.length === 1 ? '' : 's'} into ${targetLanguage}?\n\nPlease confirm that this is the correct target language.`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      const items = mixedValues.map((item, index) => ({
+        id: index,
+        path: item.path,
+        key_path: item.keyPath,
+        text: item.value,
+      }));
+      const chunks = splitIntoChunks(items);
+      const translated = JSON.parse(JSON.stringify(before));
+
+      btnCheck.disabled = true;
+      btnMerge.disabled = true;
+      btnTranslate.disabled = true;
+      processStatusEl.classList.remove('hidden');
+
+      try {
+        for (let index = 0; index < chunks.length; index += 1) {
+          processStatusEl.querySelector('#process-label').textContent = `Translating chunk ${index + 1} of ${chunks.length}...`;
+          const response = await fetch('/api/translate-chunk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({
+              target_language: targetLanguage,
+              items: chunks[index],
+            }),
+          });
+          const payload = await response.json();
+
+          if (!response.ok || payload.success === false) {
+            throw new Error(payload.message || ('Translation failed with status ' + response.status));
+          }
+
+          chunks[index].forEach(item => {
+            setValueAtPath(translated, [...item.key_path], payload.translations[String(item.id)]);
+          });
+        }
+
+        mergedData = translated;
+        resultEl.textContent = JSON.stringify(translated, null, 2);
+        renderLists(mergePayload, master, translated);
+        renderResultMetrics(translated);
+        renderTranslationReport(before, translated);
+        btnCopy.disabled = false;
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        btnCheck.disabled = false;
+        btnMerge.disabled = false;
+        btnTranslate.disabled = mergedData === null;
+        processStatusEl.classList.add('hidden');
+      }
+    }
+
+    async function copyText(text, statusEl = null) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const copyTarget = document.createElement('textarea');
+          copyTarget.value = text;
+          copyTarget.setAttribute('readonly', '');
+          copyTarget.style.position = 'fixed';
+          copyTarget.style.opacity = '0';
+          document.body.appendChild(copyTarget);
+          copyTarget.select();
+          document.execCommand('copy');
+          copyTarget.remove();
+        }
+
+        if (statusEl) {
+          statusEl.textContent = 'Copied';
+          window.setTimeout(() => { statusEl.textContent = ''; }, 1500);
+        }
+
+        return true;
+      } catch (e) {
+        if (statusEl) {
+          statusEl.textContent = 'Copy failed';
+        }
+
+        return false;
+      }
+    }
+
+    async function copyInput(input, button) {
+      const original = button.textContent;
+      button.textContent = (await copyText(input.value)) ? 'Copied' : 'Copy failed';
+      window.setTimeout(() => { button.textContent = original; }, 1500);
+    }
+
+    function copyResult() {
+      copyText(resultEl.textContent, copyStatusEl);
+    }
+
+    async function call(action, requestMaster = null, requestChild = null) {
       showError('');
       btnCheck.disabled = true;
       btnMerge.disabled = true;
+      btnTranslate.disabled = true;
+      processStatusEl.classList.toggle('hidden', action !== 'translate');
+
+      if (action !== 'translate') {
+        translationReportEl.classList.add('hidden');
+        translationReportContentEl.innerHTML = '';
+      }
 
       try {
-        const master = parseJson('Master', masterEl.value);
-        const child = parseJson('Child', childEl.value);
+        const master = requestMaster ?? parseJson('Master', masterEl.value);
+        const child = requestChild ?? parseJson('Child', childEl.value);
 
-        const res = await fetch('/api/' + action, {
+        const requestBody = {
+          master_data: master,
+          child_data: child,
+          sort: sortEl.checked,
+        };
+
+        const res = await fetch(action === 'check' ? '/api/check' : '/api/merge', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({
-            master_data: master,
-            child_data: child,
-            sort: sortEl.checked,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         const payload = await res.json();
@@ -355,27 +989,95 @@
           throw new Error(payload.message || ('Request failed with status ' + res.status));
         }
 
-        renderLists(payload);
-        resultEl.textContent = JSON.stringify(
-          action === 'merge' ? (payload.data ?? payload.merged ?? payload) : payload,
-          null,
-          2
-        );
+        const resultData = payload.data ?? payload.merged ?? payload;
+        renderLists(payload, master, action === 'translate' ? resultData : child);
+        resultEl.textContent = JSON.stringify(resultData, null, 2);
+        renderResultMetrics(resultData);
+        btnCopy.disabled = false;
+
+        if (action === 'check') {
+          checkPassed = true;
+          mergePassed = false;
+          mergedData = null;
+          mergePayload = null;
+        } else if (action === 'merge') {
+          mergePassed = true;
+          mergedData = resultData;
+          mergePayload = payload;
+        }
       } catch (e) {
         showError(e.message);
       } finally {
         btnCheck.disabled = false;
-        btnMerge.disabled = false;
+        btnMerge.disabled = !checkPassed;
+        btnTranslate.disabled = !mergePassed || mergedData === null;
+        processStatusEl.classList.add('hidden');
       }
     }
 
     btnCheck.addEventListener('click', () => call('check'));
-    btnMerge.addEventListener('click', () => call('merge'));
+    btnMerge.addEventListener('click', () => {
+      if (!checkPassed) {
+        showError('Run Check successfully before Merge.');
+        return;
+      }
+
+      mergePassed = false;
+      mergedData = null;
+      mergePayload = null;
+      call('merge');
+    });
+    btnTranslate.addEventListener('click', translateMergedValues);
+    btnCopy.addEventListener('click', copyResult);
+    btnCopyMaster.addEventListener('click', () => copyInput(masterEl, btnCopyMaster));
+    btnCopyChild.addEventListener('click', () => copyInput(childEl, btnCopyChild));
+    masterFileEl.addEventListener('change', () => loadJsonFile(masterFileEl, masterEl, 'Master'));
+    childFileEl.addEventListener('change', () => loadJsonFile(childFileEl, childEl, 'Child'));
+
+    async function loadServerFileOptions() {
+      try {
+        const response = await fetch('/api/locale-files', { headers: { 'Accept': 'application/json' } });
+        const payload = await response.json();
+
+        if (!response.ok || payload.success === false) {
+          throw new Error(payload.message || 'Unable to list locale files.');
+        }
+
+        [masterServerFileEl, childServerFileEl].forEach(select => {
+          payload.files.forEach(filename => {
+            const option = document.createElement('option');
+            option.value = filename;
+            option.textContent = filename;
+            select.appendChild(option);
+          });
+        });
+      } catch (error) {
+        // Local file upload and paste remain available if the server folder is absent.
+      }
+    }
+
+    masterServerFileEl.addEventListener('change', () => loadServerJsonFile(masterServerFileEl, masterEl, 'Master'));
+    childServerFileEl.addEventListener('change', () => loadServerJsonFile(childServerFileEl, childEl, 'Child'));
+    masterEl.addEventListener('input', () => {
+      resetWorkflow();
+      updateKeyCount(masterEl, masterCountEl);
+    });
+    childEl.addEventListener('input', () => {
+      resetWorkflow();
+      updateKeyCount(childEl, childCountEl);
+    });
     document.getElementById('btn-sample').addEventListener('click', () => {
       masterEl.value = samples.master;
       childEl.value = samples.child;
+      resetWorkflow();
+      updateKeyCount(masterEl, masterCountEl);
+      updateKeyCount(childEl, childCountEl);
       showError('');
     });
+
+    updateKeyCount(masterEl, masterCountEl);
+    updateKeyCount(childEl, childCountEl);
+    loadServerFileOptions();
   </script>
 </body>
 </html>

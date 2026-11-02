@@ -60,8 +60,8 @@ final class LocaleJsonController extends Controller
     public function merge(Request $request): JsonResponse
     {
         try {
-            [$master, $child, $sort] = $this->resolvePayload($request);
-            $result = $this->merger->merge($master, $child, $sort);
+            [$master, $child, $sort, $targetLanguage] = $this->resolvePayload($request);
+            $result = $this->merger->merge($master, $child, $sort, $targetLanguage);
 
             return response()->json([
                 'success' => true,
@@ -93,7 +93,7 @@ final class LocaleJsonController extends Controller
     }
 
     /**
-     * @return array{0: array<string, mixed>, 1: array<string, mixed>, 2: bool}
+    * @return array{0: array<string, mixed>, 1: array<string, mixed>, 2: bool, 3: string|null}
      *
      * @throws ValidationException
      * @throws InvalidJsonException
@@ -111,6 +111,7 @@ final class LocaleJsonController extends Controller
             'master_data' => ['required'],
             'child_data' => ['required'],
             'sort' => ['sometimes', 'boolean'],
+            'target_language' => ['sometimes', 'nullable', 'string', 'max:100'],
         ]);
 
         if ($validator->fails()) {
@@ -122,11 +123,13 @@ final class LocaleJsonController extends Controller
         /** @var mixed $childRaw */
         $childRaw = $request->input('child_data');
         $sort = $request->boolean('sort', (bool) config('locale-json-merger.sort_keys', true));
+        $targetLanguage = $request->input('target_language');
+        $targetLanguage = is_string($targetLanguage) && trim($targetLanguage) !== '' ? trim($targetLanguage) : null;
 
         $master = $this->normalizeObject($masterRaw, 'master_data');
         $child = $this->normalizeObject($childRaw, 'child_data');
 
-        return [$master, $child, $sort];
+        return [$master, $child, $sort, $targetLanguage];
     }
 
     /**

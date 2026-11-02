@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Vendor\LocaleJsonMerger\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Vendor\LocaleJsonMerger\Contracts\LocaleTranslator;
 use Vendor\LocaleJsonMerger\Services\LocaleJsonMerger;
+use Vendor\LocaleJsonMerger\Support\RecursiveJsonMerger;
 
 final class LocaleJsonMergerTest extends TestCase
 {
@@ -407,6 +409,76 @@ final class LocaleJsonMergerTest extends TestCase
                 ],
                 'welcome' => 'Bienvenue',
             ],
+            $result->merged(),
+        );
+    }
+
+    public function test_translation_does_not_apply_to_missing_values(): void
+    {
+        $translator = new class implements LocaleTranslator
+        {
+            /** @var list<array{value: string, language: string, path: string}> */
+            public array $calls = [];
+
+            public function translate(string $value, string $targetLanguage, string $path = ''): string
+            {
+                $this->calls[] = [
+                    'value' => $value,
+                    'language' => $targetLanguage,
+                    'path' => $path,
+                ];
+
+                return '['.$targetLanguage.'] '.$value;
+            }
+        };
+        $merger = new LocaleJsonMerger(new RecursiveJsonMerger(), $translator);
+
+        $result = $merger->merge(
+            [
+                'welcome' => 'Welcome',
+                'menu' => ['home' => 'Home', 'settings' => 'Settings'],
+            ],
+            [
+                'welcome' => 'Bienvenue',
+                'menu' => ['home' => 'Accueil'],
+            ],
+            true,
+            'French',
+        );
+
+        $this->assertSame(
+            [
+                'menu' => [
+                    'home' => 'Accueil',
+                    'settings' => 'Settings',
+                ],
+                'welcome' => 'Bienvenue',
+            ],
+            $result->merged(),
+        );
+        $this->assertSame([], $translator->calls);
+    }
+
+    public function test_translation_replaces_mixed_english_child_values(): void
+    {
+        $translator = new class implements LocaleTranslator
+        {
+            public function translate(string $value, string $targetLanguage, string $path = ''): string
+            {
+                return $targetLanguage.': '.$value;
+            }
+        };
+        $merger = new LocaleJsonMerger(new RecursiveJsonMerger(), $translator);
+
+        $result = $merger->merge(
+            ['welcome' => 'Welcome', 'menu' => ['home' => 'Home']],
+            ['welcome' => 'Welcome', 'menu' => ['home' => 'Accueil']],
+            true,
+            'French',
+        );
+
+        $this->assertSame(
+            ['menu' => ['home' => 'Accueil'], 'welcome' => 'French: Welcome'],
             $result->merged(),
         );
     }

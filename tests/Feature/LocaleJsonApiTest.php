@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Vendor\LocaleJsonMerger\Tests\Feature;
 
+use Illuminate\Support\Facades\Http;
 use Vendor\LocaleJsonMerger\Tests\TestCase;
 
 final class LocaleJsonApiTest extends TestCase
@@ -69,6 +70,28 @@ final class LocaleJsonApiTest extends TestCase
                 'missing_count' => 1,
                 'extra_count' => 0,
             ]);
+    }
+
+    public function test_http_merge_endpoint_can_translate_missing_values(): void
+    {
+        config()->set('locale-json-merger.openai.api_key', 'test-key');
+        Http::fake([
+            'https://api.openai.com/*' => Http::response([
+                'choices' => [['message' => ['content' => 'Bonjour']]],
+            ]),
+        ]);
+
+        $response = $this->postJson('/api/locale-json/merge', [
+            'master_data' => ['welcome' => 'Welcome'],
+            'child_data' => ['welcome' => 'Welcome', 'legacy' => 'Ancienne valeur'],
+            'target_language' => 'French',
+        ]);
+
+        $response->assertOk()->assertJsonPath('data.welcome', 'Bonjour');
+        Http::assertSent(function ($request): bool {
+            return $request->data()['model'] === 'gpt-4o'
+                && $request->data()['messages'][1]['content'] === '{"target_language":"French","key":"welcome","text":"Welcome"}';
+        });
     }
 
     public function test_http_validation_errors(): void
