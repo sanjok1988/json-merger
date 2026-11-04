@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Locale JSON Merger</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsoneditor@10.4.1/dist/jsoneditor.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/jsoneditor@10.4.1/dist/jsoneditor.min.js"></script>
   <style>
     :root {
       --bg: #0f1419;
@@ -33,9 +35,9 @@
     }
 
     .wrap {
-      max-width: 1200px;
+      width: 100%;
       margin: 0 auto;
-      padding: 2rem 1.25rem 3rem;
+      padding: 2rem clamp(1rem, 3vw, 3rem) 3rem;
     }
 
     header h1 {
@@ -54,7 +56,7 @@
 
     .grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 1rem;
       margin-bottom: 1rem;
     }
@@ -207,6 +209,25 @@
     .stat.extra .n { color: var(--warn); }
     .stat.ok .n { color: var(--ok); }
 
+    .stats-guide {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.6rem 1rem;
+      margin: -0.5rem 0 1rem;
+      padding: 0.85rem 1rem;
+      color: var(--muted);
+      background: rgb(26 35 50 / 55%);
+      border-left: 3px solid var(--accent);
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    .stats-guide strong { color: var(--text); }
+
+    @media (max-width: 620px) {
+      .stats-guide { grid-template-columns: 1fr; }
+    }
+
     pre {
       margin: 0;
       background: var(--code);
@@ -304,6 +325,83 @@
       font-size: 0.8rem;
     }
 
+    .editor-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin: 0.5rem 0;
+    }
+
+    .editor-toolbar button {
+      padding: 0.35rem 0.6rem;
+      font-size: 0.78rem;
+    }
+
+    .editor-status {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .editor-status.valid { color: var(--ok); }
+    .editor-status.invalid { color: var(--err); }
+
+    .json-editor {
+      height: 360px;
+      overflow: hidden;
+      background: var(--code);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .editor-body {
+      display: grid;
+      grid-template-columns: 3rem minmax(0, 1fr);
+      min-height: 280px;
+      max-height: 520px;
+      overflow: auto;
+    }
+
+    .line-numbers {
+      padding: 0.85rem 0.55rem 0.85rem 0;
+      color: #53647d;
+      border-right: 1px solid var(--border);
+      font: 0.85rem/1.45 "IBM Plex Mono", ui-monospace, monospace;
+      text-align: right;
+      user-select: none;
+    }
+
+    .line-numbers span { display: block; }
+
+    .code-editor {
+      min-width: 0;
+      margin: 0;
+      padding: 0.85rem;
+      color: var(--text);
+      font: 0.85rem/1.45 "IBM Plex Mono", ui-monospace, monospace;
+      white-space: pre;
+      tab-size: 2;
+      outline: none;
+      caret-color: var(--accent-hover);
+    }
+
+    .code-editor[contenteditable="true"]:focus {
+      box-shadow: inset 0 0 0 2px var(--accent);
+    }
+
+    .result-editor .editor-body { min-height: 280px; }
+
+    .result-editor .code-editor {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     .copy-status {
       min-width: 4.5rem;
       color: var(--ok);
@@ -381,6 +479,7 @@
       <div class="panel">
         <div class="editor-header">
           <label for="master">Master (en.json)</label>
+          <span class="editor-status" id="master-status" aria-live="polite"></span>
           <button type="button" class="secondary copy-button" id="btn-copy-master">Copy</button>
         </div>
         <div class="file-picker">
@@ -389,26 +488,13 @@
           </select>
           <input type="file" id="master-file" accept=".json,application/json">
         </div>
-        <textarea id="master" spellcheck="false">{
-  "welcome": "Welcome",
-  "menu": {
-    "home": "Home",
-    "settings": "Settings"
-  },
-  "auth": {
-    "login": {
-      "title": "Login",
-      "email": "Email",
-      "password": "Password"
-    }
-  },
-  "languages": ["English", "French", "Japanese"]
-}</textarea>
-      <div class="key-count" id="master-count" aria-live="polite"></div>
+        <div id="master" class="json-editor" role="application" aria-label="Master JSON editor"></div>
+        <div class="key-count" id="master-count" aria-live="polite"></div>
       </div>
       <div class="panel">
         <div class="editor-header">
           <label for="child">Child locale (e.g. fr.json)</label>
+          <span class="editor-status" id="child-status" aria-live="polite"></span>
           <button type="button" class="secondary copy-button" id="btn-copy-child">Copy</button>
         </div>
         <div class="file-picker">
@@ -417,22 +503,8 @@
           </select>
           <input type="file" id="child-file" accept=".json,application/json">
         </div>
-        <textarea id="child" spellcheck="false">{
-  "welcome": "Bienvenue",
-  "menu": {
-    "home": "Accueil"
-  },
-  "auth": {
-    "login": {
-      "title": "Connexion"
-    }
-  },
-  "legacy": {
-    "title": "Ancien titre"
-  },
-  "ja": "こんにちは"
-}</textarea>
-      <div class="key-count" id="child-count" aria-live="polite"></div>
+        <div id="child" class="json-editor" role="application" aria-label="Child locale JSON editor"></div>
+        <div class="key-count" id="child-count" aria-live="polite"></div>
       </div>
     </div>
 
@@ -470,6 +542,12 @@
     <p id="error" class="error hidden"></p>
 
     <div id="stats" class="stats hidden"></div>
+    <div class="stats-guide" aria-label="Result statistics explanation">
+      <div><strong>Missing:</strong> keys in the master file that are not yet in the child locale. Merge adds these values.</div>
+      <div><strong>Extra:</strong> keys in the child locale that do not exist in the master file. Review or remove them if they are no longer needed.</div>
+      <div><strong>Conflicts:</strong> matching keys whose value types differ, such as an object in the master and text in the child. These need manual review.</div>
+      <div><strong>English values:</strong> the number of text values found in the master and child files. “English values mixed in” highlights child values still identical to the master.</div>
+    </div>
     <details id="mixed-values" class="mixed-values hidden" open>
       <summary>English values still present in the child locale</summary>
       <div id="mixed-values-content" class="mixed-values-content"></div>
@@ -489,8 +567,9 @@
           <label>Result JSON</label>
           <span class="copy-status" id="copy-status" aria-live="polite"></span>
           <button type="button" class="secondary copy-button" id="btn-copy" disabled>Copy JSON</button>
+          <button type="button" class="secondary copy-button" id="btn-save" disabled>Save JSON</button>
         </div>
-        <pre id="result">Run Check or Merge to see output.</pre>
+        <div id="result" class="json-editor result-editor" role="application" aria-label="Result JSON editor"></div>
         <div class="result-metrics hidden" id="result-metrics" aria-live="polite"></div>
       </div>
     </div>
@@ -518,6 +597,7 @@
     const btnCopy = document.getElementById('btn-copy');
     const btnCopyMaster = document.getElementById('btn-copy-master');
     const btnCopyChild = document.getElementById('btn-copy-child');
+    const btnSave = document.getElementById('btn-save');
     const copyStatusEl = document.getElementById('copy-status');
     const mixedValuesEl = document.getElementById('mixed-values');
     const mixedValuesContentEl = document.getElementById('mixed-values-content');
@@ -529,10 +609,77 @@
     let mergePayload = null;
     let checkPassed = false;
     let mergePassed = false;
+    let editorsReady = false;
+
+    function getEditorText(editor) {
+      return editor.jsonEditor.getText();
+    }
+
+    function updateEditorLines(editor) {
+      return editor;
+    }
+
+    function setEditorText(editor, text) {
+      editor.jsonEditor.setText(text);
+    }
+
+    function setEditorStatus(editor, message, state = '') {
+      const status = document.getElementById(editor.id + '-status');
+
+      if (!status) {
+        return;
+      }
+
+      status.textContent = message;
+      status.className = 'editor-status' + (state ? ' ' + state : '');
+    }
+
+    const initialMaster = {
+      welcome: 'Welcome',
+      menu: { home: 'Home', settings: 'Settings' },
+      auth: { login: { title: 'Login', email: 'Email', password: 'Password' } },
+      languages: ['English', 'French', 'Japanese'],
+    };
+    const initialChild = {
+      welcome: 'Bienvenue',
+      menu: { home: 'Accueil' },
+      auth: { login: { title: 'Connexion' } },
+      legacy: { title: 'Ancien titre' },
+      ja: 'こんにちは',
+    };
+
+    function createJsonEditor(element, value, editable) {
+      const instance = new JSONEditor(element, {
+        mode: editable ? 'tree' : 'view',
+        modes: editable ? ['tree', 'code', 'form', 'text', 'view'] : ['view', 'code', 'text'],
+        mainMenuBar: true,
+        navigationBar: true,
+        statusBar: true,
+        search: true,
+        onChange: () => {
+          if (!editorsReady || !editable) {
+            return;
+          }
+
+          resetWorkflow();
+          updateKeyCount(element, element.id === 'master' ? masterCountEl : childCountEl);
+          setEditorStatus(element, '');
+        },
+      });
+      instance.set(value);
+      element.jsonEditor = instance;
+
+      return instance;
+    }
+
+    const masterJsonEditor = createJsonEditor(masterEl, initialMaster, true);
+    const childJsonEditor = createJsonEditor(childEl, initialChild, true);
+    const resultJsonEditor = createJsonEditor(resultEl, {}, false);
+    editorsReady = true;
 
     const samples = {
-      master: masterEl.value,
-      child: childEl.value,
+      master: JSON.stringify(initialMaster, null, 2),
+      child: JSON.stringify(initialChild, null, 2),
     };
 
     function showError(msg) {
@@ -548,6 +695,7 @@
       btnMerge.disabled = true;
       btnTranslate.disabled = true;
       btnCopy.disabled = true;
+      btnSave.disabled = true;
       translationReportEl.classList.add('hidden');
       translationReportContentEl.innerHTML = '';
     }
@@ -572,13 +720,14 @@
       }
 
       try {
-        target.value = await file.text();
-        parseJson(label, target.value);
+        setEditorText(target, await file.text());
+        parseJson(label, getEditorText(target));
         updateKeyCount(target, label === 'Master' ? masterCountEl : childCountEl);
         mergedData = null;
         resetWorkflow();
-        resultEl.textContent = 'Run Check or Merge to see output.';
+        setEditorText(resultEl, 'Run Check or Merge to see output.');
         btnCopy.disabled = true;
+        btnSave.disabled = true;
         translationReportEl.classList.add('hidden');
         showError('');
       } catch (error) {
@@ -603,13 +752,14 @@
           throw new Error(payload.message || 'Unable to load locale file.');
         }
 
-        target.value = JSON.stringify(payload.data, null, 2);
+        setEditorText(target, JSON.stringify(payload.data, null, 2));
         updateKeyCount(target, label === 'Master' ? masterCountEl : childCountEl);
         mergedData = null;
         mergePayload = null;
         btnTranslate.disabled = true;
-        resultEl.textContent = 'Run Check or Merge to see output.';
+        setEditorText(resultEl, 'Run Check or Merge to see output.');
         btnCopy.disabled = true;
+        btnSave.disabled = true;
         translationReportEl.classList.add('hidden');
         showError('');
       } catch (error) {
@@ -629,7 +779,7 @@
 
     function updateKeyCount(input, output) {
       try {
-        output.textContent = 'Total keys: ' + countLeafKeys(parseJson('Locale', input.value));
+        output.textContent = 'Total keys: ' + countLeafKeys(parseJson('Locale', getEditorText(input)));
       } catch (e) {
         output.textContent = 'Total keys: Invalid JSON';
       }
@@ -844,7 +994,7 @@
         return;
       }
 
-      const master = parseJson('Master', masterEl.value);
+      const master = parseJson('Master', getEditorText(masterEl));
       const before = JSON.parse(JSON.stringify(mergedData));
       const mixedValues = findMixedEnglishValues(master, before);
 
@@ -900,11 +1050,12 @@
         }
 
         mergedData = translated;
-        resultEl.textContent = JSON.stringify(translated, null, 2);
+        setEditorText(resultEl, JSON.stringify(translated, null, 2));
         renderLists(mergePayload, master, translated);
         renderResultMetrics(translated);
         renderTranslationReport(before, translated);
         btnCopy.disabled = false;
+        btnSave.disabled = false;
       } catch (error) {
         showError(error.message);
       } finally {
@@ -948,12 +1099,52 @@
 
     async function copyInput(input, button) {
       const original = button.textContent;
-      button.textContent = (await copyText(input.value)) ? 'Copied' : 'Copy failed';
+      button.textContent = (await copyText(getEditorText(input))) ? 'Copied' : 'Copy failed';
       window.setTimeout(() => { button.textContent = original; }, 1500);
     }
 
     function copyResult() {
-      copyText(resultEl.textContent, copyStatusEl);
+      copyText(getEditorText(resultEl), copyStatusEl);
+    }
+
+    function saveResult() {
+      try {
+        const result = parseJson('Result', getEditorText(resultEl));
+        const blob = new Blob([JSON.stringify(result, null, 2) + '\n'], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'merged-locale.json';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        copyStatusEl.textContent = 'Saved';
+        window.setTimeout(() => { copyStatusEl.textContent = ''; }, 1500);
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    function editJson(editor, action) {
+      const label = editor.id === 'master' ? 'Master' : 'Child';
+
+      try {
+        const value = parseJson(label, getEditorText(editor));
+
+        if (action === 'validate') {
+          setEditorStatus(editor, 'Valid JSON - ' + countLeafKeys(value) + ' keys', 'valid');
+          return;
+        }
+
+        const statusMessage = action === 'minify' ? 'Minified' : 'Formatted';
+        setEditorText(editor, action === 'minify' ? JSON.stringify(value) : JSON.stringify(value, null, 2));
+        editor.dispatchEvent(new Event('input'));
+        setEditorStatus(editor, statusMessage, 'valid');
+      } catch (error) {
+        setEditorStatus(editor, 'Invalid JSON', 'invalid');
+        showError(error.message);
+      }
     }
 
     async function call(action, requestMaster = null, requestChild = null) {
@@ -969,8 +1160,8 @@
       }
 
       try {
-        const master = requestMaster ?? parseJson('Master', masterEl.value);
-        const child = requestChild ?? parseJson('Child', childEl.value);
+        const master = requestMaster ?? parseJson('Master', getEditorText(masterEl));
+        const child = requestChild ?? parseJson('Child', getEditorText(childEl));
 
         const requestBody = {
           master_data: master,
@@ -991,9 +1182,10 @@
 
         const resultData = payload.data ?? payload.merged ?? payload;
         renderLists(payload, master, action === 'translate' ? resultData : child);
-        resultEl.textContent = JSON.stringify(resultData, null, 2);
+        setEditorText(resultEl, JSON.stringify(resultData, null, 2));
         renderResultMetrics(resultData);
         btnCopy.disabled = false;
+        btnSave.disabled = false;
 
         if (action === 'check') {
           checkPassed = true;
@@ -1029,8 +1221,36 @@
     });
     btnTranslate.addEventListener('click', translateMergedValues);
     btnCopy.addEventListener('click', copyResult);
+    btnSave.addEventListener('click', saveResult);
     btnCopyMaster.addEventListener('click', () => copyInput(masterEl, btnCopyMaster));
     btnCopyChild.addEventListener('click', () => copyInput(childEl, btnCopyChild));
+    document.querySelectorAll('[data-editor-action]').forEach(button => {
+      button.addEventListener('click', () => {
+        const editor = document.getElementById(button.dataset.editor);
+
+        if (button.dataset.editorAction === 'copy') {
+          copyText(getEditorText(editor), document.getElementById(editor.id + '-status'));
+          return;
+        }
+
+        editJson(editor, button.dataset.editorAction);
+      });
+    });
+
+    [masterEl, childEl].forEach(editor => {
+      editor.addEventListener('keydown', event => {
+        if (event.key === 'Tab') {
+          event.preventDefault();
+          document.execCommand('insertText', false, '  ');
+        }
+
+        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          editJson(editor, 'validate');
+        }
+      });
+    });
+
     masterFileEl.addEventListener('change', () => loadJsonFile(masterFileEl, masterEl, 'Master'));
     childFileEl.addEventListener('change', () => loadJsonFile(childFileEl, childEl, 'Child'));
 
@@ -1060,15 +1280,19 @@
     childServerFileEl.addEventListener('change', () => loadServerJsonFile(childServerFileEl, childEl, 'Child'));
     masterEl.addEventListener('input', () => {
       resetWorkflow();
+      updateEditorLines(masterEl);
       updateKeyCount(masterEl, masterCountEl);
+      setEditorStatus(masterEl, '');
     });
     childEl.addEventListener('input', () => {
       resetWorkflow();
+      updateEditorLines(childEl);
       updateKeyCount(childEl, childCountEl);
+      setEditorStatus(childEl, '');
     });
     document.getElementById('btn-sample').addEventListener('click', () => {
-      masterEl.value = samples.master;
-      childEl.value = samples.child;
+      setEditorText(masterEl, samples.master);
+      setEditorText(childEl, samples.child);
       resetWorkflow();
       updateKeyCount(masterEl, masterCountEl);
       updateKeyCount(childEl, childCountEl);
@@ -1077,6 +1301,9 @@
 
     updateKeyCount(masterEl, masterCountEl);
     updateKeyCount(childEl, childCountEl);
+    updateEditorLines(masterEl);
+    updateEditorLines(childEl);
+    updateEditorLines(resultEl);
     loadServerFileOptions();
   </script>
 </body>
