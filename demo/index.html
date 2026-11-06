@@ -314,6 +314,12 @@
       font-size: 0.95rem;
     }
 
+    .success {
+      color: var(--ok);
+      margin: 0.5rem 0 0;
+      font-size: 0.95rem;
+    }
+
     .hidden { display: none; }
 
     .list {
@@ -632,6 +638,7 @@
     </dialog>
 
     <p id="error" class="error hidden"></p>
+    <p id="translation-complete" class="success hidden" role="status" aria-live="polite"></p>
 
     <div id="stats" class="stats hidden"></div>
     <div class="stats-guide" aria-label="Result statistics explanation">
@@ -679,6 +686,7 @@
     const sortEl = document.getElementById('sort');
     const targetLanguageEl = document.getElementById('target-language');
     const errorEl = document.getElementById('error');
+    const translationCompleteEl = document.getElementById('translation-complete');
     const statsEl = document.getElementById('stats');
     const keysEl = document.getElementById('keys');
     const resultEl = document.getElementById('result');
@@ -786,6 +794,11 @@
       errorEl.classList.toggle('hidden', !msg);
     }
 
+    function showTranslationComplete(message = '') {
+      translationCompleteEl.textContent = message;
+      translationCompleteEl.classList.toggle('hidden', !message);
+    }
+
     function resetWorkflow() {
       checkPassed = false;
       mergePassed = false;
@@ -795,6 +808,7 @@
       btnTranslate.disabled = true;
       btnCopy.disabled = true;
       btnSave.disabled = true;
+      showTranslationComplete();
       translationReportEl.classList.add('hidden');
       translationReportContentEl.innerHTML = '';
     }
@@ -1168,6 +1182,7 @@
 
     async function translateMergedValues() {
       showError('');
+      showTranslationComplete();
 
       if (!mergePassed || mergedData === null) {
         showError('Complete Check and Merge before translating.');
@@ -1233,6 +1248,7 @@
         renderTranslationReport(before, translated);
         btnCopy.disabled = false;
         btnSave.disabled = false;
+        showTranslationComplete(`Translation completed in ${targetLanguage}.`);
       } catch (error) {
         showError(error.message);
       } finally {
@@ -1326,6 +1342,7 @@
 
     async function call(action, requestMaster = null, requestChild = null) {
       showError('');
+      showTranslationComplete();
       btnCheck.disabled = true;
       btnMerge.disabled = true;
       btnTranslate.disabled = true;
