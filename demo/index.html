@@ -563,6 +563,7 @@
           <label for="master">Master (en.json)</label>
           <span class="editor-status" id="master-status" aria-live="polite"></span>
           <button type="button" class="secondary copy-button" id="btn-copy-master">Copy</button>
+          <button type="button" class="secondary copy-button" id="btn-remember-master">Remember</button>
         </div>
         <button type="button" class="secondary copy-button" id="btn-show-add-master-key">Add key</button>
         <form class="add-key-form hidden" id="add-master-key-form">
@@ -697,6 +698,7 @@
     const btnCopy = document.getElementById('btn-copy');
     const btnCopyMaster = document.getElementById('btn-copy-master');
     const btnCopyChild = document.getElementById('btn-copy-child');
+    const btnRememberMaster = document.getElementById('btn-remember-master');
     const btnShowAddMasterKey = document.getElementById('btn-show-add-master-key');
     const addMasterKeyForm = document.getElementById('add-master-key-form');
     const masterKeyEl = document.getElementById('master-key');
@@ -747,6 +749,25 @@
       auth: { login: { title: 'Login', email: 'Email', password: 'Password' } },
       languages: ['English', 'French', 'Japanese'],
     };
+
+    const rememberedMasterStorageKey = 'locale-json-merger.master';
+
+    function getRememberedMaster() {
+      try {
+        const saved = localStorage.getItem(rememberedMasterStorageKey);
+
+        if (!saved) {
+          return null;
+        }
+
+        return parseJson('Remembered master', saved);
+      } catch (error) {
+        localStorage.removeItem(rememberedMasterStorageKey);
+        return null;
+      }
+    }
+
+    const rememberedMaster = getRememberedMaster();
     const initialChild = {
       welcome: 'Bienvenue',
       menu: { home: 'Accueil' },
@@ -757,7 +778,7 @@
 
     function createJsonEditor(element, value, editable) {
       const instance = new JSONEditor(element, {
-        mode: editable ? 'tree' : 'view',
+        mode: 'code',
         modes: editable ? ['tree', 'code', 'form', 'text', 'view'] : ['view', 'code', 'text'],
         mainMenuBar: true,
         navigationBar: true,
@@ -779,7 +800,7 @@
       return instance;
     }
 
-    const masterJsonEditor = createJsonEditor(masterEl, initialMaster, true);
+    const masterJsonEditor = createJsonEditor(masterEl, rememberedMaster ?? initialMaster, true);
     const childJsonEditor = createJsonEditor(childEl, initialChild, true);
     const resultJsonEditor = createJsonEditor(resultEl, {}, false);
     editorsReady = true;
@@ -1418,6 +1439,17 @@
     btnSave.addEventListener('click', saveResult);
     btnCopyMaster.addEventListener('click', () => copyInput(masterEl, btnCopyMaster));
     btnCopyChild.addEventListener('click', () => copyInput(childEl, btnCopyChild));
+    btnRememberMaster.addEventListener('click', () => {
+      try {
+        const master = parseJson('Master', getEditorText(masterEl));
+        localStorage.setItem(rememberedMasterStorageKey, JSON.stringify(master));
+        btnRememberMaster.textContent = 'Remembered';
+        window.setTimeout(() => { btnRememberMaster.textContent = 'Remember'; }, 1500);
+        showError('');
+      } catch (error) {
+        showError(error.message);
+      }
+    });
     btnShowAddMasterKey.addEventListener('click', () => {
       addMasterKeyForm.classList.remove('hidden');
       btnShowAddMasterKey.classList.add('hidden');
