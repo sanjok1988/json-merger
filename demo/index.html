@@ -326,6 +326,19 @@
     .list.missing li { color: #ff8f86; }
     .list.extra li { color: #ffc56d; }
 
+    .extra-key-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .extra-key-item button {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+
     .result-header {
       display: flex;
       align-items: center;
@@ -1010,7 +1023,12 @@
         <p style="margin:0 0 .4rem;color:var(--muted)">Missing (${missing.length})</p>
         <ul class="list missing">${missing.length ? missing.map(k => `<li>${k}</li>`).join('') : '<li>None</li>'}</ul>
         <p style="margin:1rem 0 .4rem;color:var(--muted)">Extra (${extra.length})</p>
-        <ul class="list extra">${extra.length ? extra.map(k => `<li>${k}</li>`).join('') : '<li>None</li>'}</ul>
+        <ul class="list extra">${extra.length ? extra.map(key => `
+          <li class="extra-key-item">
+            <span>${escapeHtml(key)}</span>
+            <button type="button" class="secondary" data-promote-extra="${escapeHtml(key)}">Merge to master</button>
+          </li>
+        `).join('') : '<li>None</li>'}</ul>
         ${conflicts.length ? `
           <p style="margin:1rem 0 .4rem;color:var(--muted)">Type conflicts (${conflicts.length})</p>
           <ul class="list">${conflicts.map(c => `<li>${c.path} — master:${c.master_type}, child:${c.child_type}</li>`).join('')}</ul>
@@ -1035,6 +1053,44 @@
           ${mixedValues.map(item => `<li><code>${escapeHtml(item.path)}</code>: ${escapeHtml(item.value)}</li>`).join('')}
         </ul>
       ` : '';
+
+      keysEl.querySelectorAll('[data-promote-extra]').forEach(button => {
+        button.addEventListener('click', () => promoteExtraToMaster(button.dataset.promoteExtra));
+      });
+    }
+
+    function getValueAtPath(object, keys) {
+      return keys.reduce((current, key) => current?.[key], object);
+    }
+
+    function promoteExtraToMaster(path) {
+      try {
+        const master = parseJson('Master', getEditorText(masterEl));
+        const child = parseJson('Child', getEditorText(childEl));
+        const keys = path.split('.');
+        let current = master;
+
+        keys.slice(0, -1).forEach(key => {
+          if (current[key] === undefined) {
+            current[key] = {};
+          } else if (current[key] === null || typeof current[key] !== 'object' || Array.isArray(current[key])) {
+            throw new Error(`Cannot add ${path}: ${key} is not an object in the master.`);
+          }
+
+          current = current[key];
+        });
+
+        const finalKey = keys[keys.length - 1];
+        if (Object.prototype.hasOwnProperty.call(current, finalKey)) {
+          throw new Error(`The master already contains ${path}.`);
+        }
+
+        current[finalKey] = JSON.parse(JSON.stringify(getValueAtPath(child, keys)));
+        setEditorText(masterEl, JSON.stringify(master, null, 2));
+        showError('');
+      } catch (error) {
+        showError(error.message);
+      }
     }
 
     function renderTranslationReport(before, after) {
