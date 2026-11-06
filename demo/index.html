@@ -164,6 +164,47 @@
 
     .process-status.hidden { display: none; }
 
+    .translation-dialog {
+      width: min(28rem, calc(100% - 2rem));
+      padding: 1.25rem;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .translation-dialog::backdrop {
+      background: rgb(5 10 18 / 72%);
+    }
+
+    .translation-dialog h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.1rem;
+    }
+
+    .translation-dialog p {
+      margin: 0 0 1rem;
+      color: var(--muted);
+    }
+
+    .translation-dialog label {
+      display: block;
+      margin-bottom: 0.35rem;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .translation-dialog select {
+      width: 100%;
+      margin-bottom: 1rem;
+    }
+
+    .translation-dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
     .spinner {
       width: 1rem;
       height: 1rem;
@@ -325,6 +366,28 @@
       font-size: 0.8rem;
     }
 
+    .add-key-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin: 0.5rem 0;
+    }
+
+    .add-key-form input {
+      min-width: 0;
+      flex: 1 1 9rem;
+    }
+
+    .add-key-form input[type="text"]:first-child {
+      flex-basis: 8rem;
+    }
+
+    .add-key-form button {
+      padding: 0.4rem 0.7rem;
+      font-size: 0.8rem;
+    }
+
     .editor-actions {
       display: flex;
       align-items: center;
@@ -482,6 +545,13 @@
           <span class="editor-status" id="master-status" aria-live="polite"></span>
           <button type="button" class="secondary copy-button" id="btn-copy-master">Copy</button>
         </div>
+        <button type="button" class="secondary copy-button" id="btn-show-add-master-key">Add key</button>
+        <form class="add-key-form hidden" id="add-master-key-form">
+          <input type="text" id="master-key" placeholder="Key" aria-label="New master key" required>
+          <input type="text" id="master-value" placeholder="Value" aria-label="New master value">
+          <button type="submit">Add</button>
+          <button type="button" class="secondary" id="btn-cancel-add-master-key">Cancel</button>
+        </form>
         <div class="file-picker">
           <select id="master-server-file" aria-label="Master file from storage app locales">
             <option value="">Load from storage/app/locales...</option>
@@ -513,8 +583,21 @@
         <input type="checkbox" id="sort" checked>
         Sort keys alphabetically
       </label>
-      <label class="toggle" for="target-language">
-        Target language
+      <button type="button" id="btn-check">Check</button>
+      <button type="button" id="btn-merge" disabled>Merge</button>
+      <button type="button" id="btn-translate" disabled>Translate</button>
+      <button type="button" class="secondary" id="btn-sample">Reset samples</button>
+      <span class="process-status hidden" id="process-status" role="status" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="process-label">Translating mixed English values...</span>
+      </span>
+    </div>
+
+    <dialog class="translation-dialog" id="translation-dialog">
+      <form method="dialog" id="translation-dialog-form">
+        <h2>Confirm translation</h2>
+        <p>Translate <strong id="translation-count"></strong> mixed English values?</p>
+        <label for="target-language">Target language</label>
         <select id="target-language">
           <option value="French">French</option>
           <option value="Vietnamese">Vietnamese</option>
@@ -528,16 +611,12 @@
           <option value="Russian">Russian</option>
           <option value="Nepali">Nepali</option>
         </select>
-      </label>
-      <button type="button" id="btn-check">Check</button>
-      <button type="button" id="btn-merge" disabled>Merge</button>
-      <button type="button" id="btn-translate" disabled>Translate</button>
-      <button type="button" class="secondary" id="btn-sample">Reset samples</button>
-      <span class="process-status hidden" id="process-status" role="status" aria-live="polite">
-        <span class="spinner" aria-hidden="true"></span>
-        <span id="process-label">Translating mixed English values...</span>
-      </span>
-    </div>
+        <div class="translation-dialog-actions">
+          <button type="submit" value="cancel" class="secondary">Cancel</button>
+          <button type="submit" value="confirm">Translate</button>
+        </div>
+      </form>
+    </dialog>
 
     <p id="error" class="error hidden"></p>
 
@@ -597,6 +676,11 @@
     const btnCopy = document.getElementById('btn-copy');
     const btnCopyMaster = document.getElementById('btn-copy-master');
     const btnCopyChild = document.getElementById('btn-copy-child');
+    const btnShowAddMasterKey = document.getElementById('btn-show-add-master-key');
+    const addMasterKeyForm = document.getElementById('add-master-key-form');
+    const masterKeyEl = document.getElementById('master-key');
+    const masterValueEl = document.getElementById('master-value');
+    const btnCancelAddMasterKey = document.getElementById('btn-cancel-add-master-key');
     const btnSave = document.getElementById('btn-save');
     const copyStatusEl = document.getElementById('copy-status');
     const mixedValuesEl = document.getElementById('mixed-values');
@@ -605,6 +689,8 @@
     const translationReportSummaryEl = document.getElementById('translation-report-summary');
     const translationReportContentEl = document.getElementById('translation-report-content');
     const processStatusEl = document.getElementById('process-status');
+    const translationDialog = document.getElementById('translation-dialog');
+    const translationCountEl = document.getElementById('translation-count');
     let mergedData = null;
     let mergePayload = null;
     let checkPassed = false;
@@ -709,6 +795,33 @@
         return value;
       } catch (e) {
         throw new Error(label + ': ' + e.message);
+      }
+    }
+
+    function addMasterKey(event) {
+      event.preventDefault();
+
+      try {
+        const master = parseJson('Master', getEditorText(masterEl));
+        const key = masterKeyEl.value.trim();
+
+        if (Object.prototype.hasOwnProperty.call(master, key)) {
+          throw new Error('That master key already exists.');
+        }
+
+        if (!key) {
+          throw new Error('Enter a master key.');
+        }
+
+        master[key] = masterValueEl.value;
+        setEditorText(masterEl, JSON.stringify(master, null, 2));
+        addMasterKeyForm.reset();
+        addMasterKeyForm.classList.add('hidden');
+        btnShowAddMasterKey.classList.remove('hidden');
+        showError('');
+        btnShowAddMasterKey.focus();
+      } catch (error) {
+        showError(error.message);
       }
     }
 
@@ -986,6 +1099,17 @@
       return chunks;
     }
 
+    function confirmTranslation(count) {
+      translationCountEl.textContent = `${count} mixed English value${count === 1 ? '' : 's'}`;
+      translationDialog.showModal();
+
+      return new Promise(resolve => {
+        translationDialog.addEventListener('close', () => {
+          resolve(translationDialog.returnValue === 'confirm' ? targetLanguageEl.value : null);
+        }, { once: true });
+      });
+    }
+
     async function translateMergedValues() {
       showError('');
 
@@ -1004,12 +1128,9 @@
         return;
       }
 
-      const targetLanguage = targetLanguageEl.value;
-      const confirmed = window.confirm(
-        `Translate ${mixedValues.length} mixed English value${mixedValues.length === 1 ? '' : 's'} into ${targetLanguage}?\n\nPlease confirm that this is the correct target language.`,
-      );
+      const targetLanguage = await confirmTranslation(mixedValues.length);
 
-      if (!confirmed) {
+      if (targetLanguage === null) {
         return;
       }
 
@@ -1224,6 +1345,18 @@
     btnSave.addEventListener('click', saveResult);
     btnCopyMaster.addEventListener('click', () => copyInput(masterEl, btnCopyMaster));
     btnCopyChild.addEventListener('click', () => copyInput(childEl, btnCopyChild));
+    btnShowAddMasterKey.addEventListener('click', () => {
+      addMasterKeyForm.classList.remove('hidden');
+      btnShowAddMasterKey.classList.add('hidden');
+      masterKeyEl.focus();
+    });
+    btnCancelAddMasterKey.addEventListener('click', () => {
+      addMasterKeyForm.reset();
+      addMasterKeyForm.classList.add('hidden');
+      btnShowAddMasterKey.classList.remove('hidden');
+      showError('');
+    });
+    addMasterKeyForm.addEventListener('submit', addMasterKey);
     document.querySelectorAll('[data-editor-action]').forEach(button => {
       button.addEventListener('click', () => {
         const editor = document.getElementById(button.dataset.editor);
